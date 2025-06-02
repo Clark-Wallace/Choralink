@@ -1,0 +1,59 @@
+// Choralink CSS for Visual Score Component
+
+.visual-score-container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.visual-score {
+    width: 100%;
+    min-height: 400px;
+    border: 1px solid #e0e0e0;
+    background-color: #fafafa;
+    padding: 10px;
+    overflow-x: auto;
+}
+
+.score-controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 15px;
+    padding: 10px;
+    border-top: 1px solid #eee;
+}
+
+.score-controls button {
+    background-color: #4a90e2;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.score-controls button:hover {
+    background-color: #357abD;
+}
+
+@media (max-width: 768px) {
+    .visual-score-container {
+        padding: 10px;
+    }
+    
+    .visual-score {
+        min-height: 300px;
+    }
+    
+    .score-controls button {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+}

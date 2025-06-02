@@ -1,36 +1,73 @@
-# 🎶 Choralink
+# 🎼 Choralink
 
-Choralink is an AI-assisted gospel music arrangement engine designed for accessibility, musicality, and intelligent growth. It helps musicians — especially gospel players — generate meaningful arrangements from MusicXML or MIDI files, with custom instrument support (e.g. saxophone).
+**Auto-arranger for Gospel Musicians**  
+Upload your MIDI, audio, or sheet music. Select an instrument. Get an arrangement that just works.
+
+--
+
+# 📜 Choralink Commit Log: v2.0
+
+## 🧠 Phase 2 Merge by GitGPT & Kaji
+
+### ✅ Major Additions:
+- Integrated core backend logic:
+  - arrangement_generator.py 🌸
+  - music_analyzer.py 🌸
+- Added instrument_config.py for dropdown-ready abstraction
+- CLI interface enhanced via run_choralink.py
+- Frontend scaffold initiated (visual_score.jsx, css)
+- Audio processing logic imported (real_time_processor, harmony_matcher)
+- README.md updated with clear usage and vision
+- dev_log.md tracking evolution, bloom points, and agentic hooks
+
+### 📦 Directory Refactor:
+- Unified structure under `/Choralink`
+- /backend/, /frontend/, /audio_engine/, /docs/, /examples/, /notebooks/ scaffolded
+- Marked bloom points in logic files for semantic growth
+
+### 🎯 Project Intent:
+> “Simple. Sacred. Sound.”
+> For Gospel musicians seeking harmony without hurdles.
+
+## ✨ Features
+
+- 🎵 Analyze MIDI, MusicXML, and audio files
+- 🎷 Auto-generate arrangements for any instrument
+- 🎚️ Detect key, tempo, chords, SATB parts
+- 📄 PDF sheet music support (coming soon via OCR)
 
 ---
 
-## 🌟 Core Features
+## 🚀 Quick Start
 
-- 🎼 **Melody Extraction** — Identifies the most "singable" voice from a piano or SATB input
-- 🎷 **Instrument-Aware Arrangement** — Adapts phrasing, dynamics, and range based on your selected instrument (starting with saxophone)
-- 🧠 **Semantic Listening Logic** — Recognizes motifs, phrasing, and melodic intent
-- 🎛️ **Simple UI Mode** (Coming soon via `choralink_ui.py`) — drag & drop, pick instrument, preview, export
+```bash
+git clone https://github.com/Clark-Wallace/Choralink.git
+cd Choralink
+pip install -r backend/requirements.txt
+python backend/run_choralink.py --input examples/sample_gospel_input.mid --instrument saxophone
+```
 
 ---
 
-## 📂 Directory Structure
+## 📂 Input Formats
 
-```plaintext
+| Format      | Supported | Notes |
+|-------------|-----------|-------|
+| MIDI (.mid) | ✅        | Fully supported |
+| Audio (.wav/.mp3) | ✅  | Key + chord estimation |
+| MusicXML (.musicxml/.mxl) | ✅ | Full symbolic score parsing |
+| PDF (.pdf) | ⚠️ Planned | Via Audiveris OCR |
+
+---
+
+## 🧱 Repo Structure
+
+```
 Choralink/
-├── backend/
-│   ├── run_choralink.py
-│   ├── arrangement_generator.py
-│   ├── modules/
-│   │   ├── melody_extractor.py
-│   │   ├── instrument_profile.py
-│   │   ├── arrangement_strategy.py
-│   └── tests/
-│       └── test_melody_extractor.py
-├── examples/
-│   └── sample_input.xml
-├── dev_log.md
-├── README.md
-├── requirements.txt
+├── backend/        # MIDI/audio/musicxml analysis + arrangement generator
+├── frontend/       # Planned: Streamlit/Gradio UI
+├── examples/       # Example input files
+├── docs/           # Developer guides & logs
+├── notebooks/      # Usage walkthroughs in Jupyter
+```
 
-
-python backend/run_choralink.py --input examples/sample_input.xml --instrument saxophone

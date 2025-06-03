@@ -9,11 +9,14 @@ parser = argparse.ArgumentParser(description="Choralink: Gospel Auto-Arranger")
 parser.add_argument('--input', type=str, required=True, help="Path to input file (MIDI, MusicXML, etc.)")
 parser.add_argument('--instrument', type=str, required=True, help="Instrument name (e.g., saxophone)")
 parser.add_argument('--key', type=str, default=None, help="Target key (e.g., Bb)")
+parser.add_argument('--difficulty', type=str, default="intermediate", 
+                    choices=["beginner", "intermediate", "advanced", "virtuoso"],
+                    help="Difficulty level for the arrangement")
 
 args = parser.parse_args()
 
 generator = ArrangementGenerator()
-result = generator.generate_arrangement(args.input, instrument=args.instrument, target_key=args.key)
+result = generator.generate_arrangement(args.input, instrument=args.instrument, target_key=args.key, difficulty_level=args.difficulty)
 
 if result.get("error"):
     print("❌ Error:", result["error"])

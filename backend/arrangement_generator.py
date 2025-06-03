@@ -9,6 +9,9 @@ import music21
 from backend.music_analyzer import MusicAnalyzer
 from typing import Dict, Optional, Any
 from backend.modules.melody_extractor import extract_melody
+from backend.modules.ai_composer import generate_melodic_line
+from backend.modules.instrument_profile import get_instrument_profile
+from backend.modules.arrangement_strategy import assign_instrument_role, score_phrase, simplify_phrase
 
 class ArrangementGenerator:
     """
@@ -23,7 +26,7 @@ class ArrangementGenerator:
         """Initialize the ArrangementGenerator with a MusicAnalyzer instance."""
         self.analyzer = MusicAnalyzer()
         
-    def generate_arrangement(self, input_file: str, instrument: str = "saxophone", target_key: Optional[str] = None) -> Dict[str, Any]:
+    def generate_arrangement(self, input_file: str, instrument: str = "saxophone", target_key: Optional[str] = None, difficulty_level: str = "intermediate") -> Dict[str, Any]:
         """
         Generate an arrangement for the specified instrument based on the input file.
         
@@ -31,6 +34,7 @@ class ArrangementGenerator:
             input_file: Path to the input music file (MIDI or audio)
             instrument: Name of the target instrument (e.g., "saxophone", "trumpet")
             target_key: Desired key for the arrangement (e.g., "Bb", "C"). If None, uses the original key.
+            difficulty_level: Skill level for the arrangement ("beginner", "intermediate", "advanced", "virtuoso")
             
         Returns:
             Dictionary containing the generated music21 score object, MusicXML string,
@@ -91,6 +95,121 @@ class ArrangementGenerator:
                         if interval:
                             melody_part = melody_part.transpose(interval)
                         
+                        # Determine the instrument's role based on context
+                        score_context = {
+                            "style": "gospel",  # Default style
+                            "section": "verse",  # Default section
+                            "tempo": analysis.get("tempo", 120),
+                            "density": 0.5,  # Could be calculated from score
+                            "measure_index": 0  # Could track actual measure
+                        }
+                        
+                        role = assign_instrument_role(instrument, score_context)
+                        print(f"🎼 Assigned role '{role}' to {instrument}")
+                        
+                        # Get instrument profile
+                        instrument_profile = get_instrument_profile(instrument)
+                        
+                        # Extract harmony grid from analysis
+                        harmony_grid = analysis.get("chord_progression", ["C", "F", "G", "C"])
+                        
+                        # Generate part based on assigned role
+                        if role == "lead":
+                            # For lead instruments, try AI composer first
+                            if "sax" in instrument.lower() or "trumpet" in instrument.lower():
+                                try:
+                                    # Generate lead line with AI composer
+                                    composed_line = generate_melodic_line(
+                                        harmony_grid=harmony_grid,
+                                        instrument_profile=instrument_profile,
+                                        style="gospel",
+                                        emotion="grateful"
+                                    )
+                                    
+                                    # Use the composed line if successful
+                                    if composed_line and len(composed_line.flatten().notes) > 0:
+                                        print(f"🎷 Using AI-composed {instrument} line")
+                                        melody_part = composed_line
+                                    else:
+                                        print("⚠️ Composer fallback: using extracted melody.")
+                                except Exception as e:
+                                    print(f"⚠️ AI composer error: {e}. Using extracted melody.")
+                                    
+                        elif role == "harmony":
+                            # For harmony role, create sustained notes on chord roots
+                            harmony_part = music21.stream.Part()
+                            current_offset = 0.0
+                            for chord_name in harmony_grid:
+                                try:
+                                    # Create whole note on chord root
+                                    root_pitch = chord_name[0]
+                                    if root_pitch in 'ABCDEFG':
+                                        n = music21.note.Note(root_pitch + "4")
+                                        n.duration = music21.duration.Duration("whole")
+                                        if interval:
+                                            n = n.transpose(interval)
+                                        harmony_part.insert(current_offset, n)
+                                        current_offset += 4.0
+                                except:
+                                    pass
+                            if len(harmony_part.flatten().notes) > 0:
+                                melody_part = harmony_part
+                                print(f"🎵 Generated harmony part for {instrument}")
+                                
+                        elif role == "echo":
+                            # For echo role, delay and simplify the melody
+                            if melody_part and len(melody_part.flatten().notes) > 2:
+                                echo_part = music21.stream.Part()
+                                # Skip first few notes and echo the rest
+                                for i, note in enumerate(melody_part.flatten().notes[2:]):
+                                    echo_note = music21.note.Note(note.pitch)
+                                    echo_note.duration = note.duration
+                                    echo_note.volume = music21.volume.Volume(velocity=int(note.volume.velocity * 0.7) if note.volume else 64)
+                                    echo_note.volume.velocity = int(note.volume.velocity * 0.7)  # Softer
+                                    echo_part.append(echo_note)
+                                melody_part = echo_part
+                                print(f"🔊 Generated echo part for {instrument}")
+                                
+                        elif role == "interjector":
+                            # For interjector role, create brief bursts
+                            interjection_part = music21.stream.Part()
+                            # Add short riffs at phrase boundaries
+                            for i in range(0, 16, 4):  # Every 4 measures
+                                if i % 8 == 4:  # Alternate pattern
+                                    # Create a short ascending riff
+                                    for j, pitch_interval in enumerate([0, 2, 4]):
+                                        n = music21.note.Note(60 + pitch_interval)
+                                        n.duration = music21.duration.Duration(0.25)
+                                        if interval:
+                                            n = n.transpose(interval)
+                                        interjection_part.insert(i + j * 0.25, n)
+                            if len(interjection_part.flatten().notes) > 0:
+                                melody_part = interjection_part
+                                print(f"💥 Generated interjection part for {instrument}")
+                        
+                        # Apply difficulty-based simplification if needed
+                        if difficulty_level in ["beginner", "intermediate"]:
+                            # Score the phrase difficulty
+                            notes_list = list(melody_part.flatten().notes)
+                            if notes_list:
+                                phrase_score = score_phrase(notes_list, instrument_profile)
+                                
+                                # Get difficulty thresholds
+                                from backend.modules.arrangement_strategy import DIFFICULTY_THRESHOLDS
+                                min_score, max_score = DIFFICULTY_THRESHOLDS.get(difficulty_level, (0, 10))
+                                
+                                # Simplify if too difficult
+                                if phrase_score > max_score:
+                                    print(f"📊 Phrase difficulty ({phrase_score:.1f}) exceeds {difficulty_level} level ({max_score})")
+                                    simplified_notes = simplify_phrase(notes_list, difficulty_level)
+                                    
+                                    # Rebuild the melody part with simplified notes
+                                    simplified_part = music21.stream.Part()
+                                    for n in simplified_notes:
+                                        simplified_part.append(n)
+                                    melody_part = simplified_part
+                                    print(f"✨ Simplified arrangement for {difficulty_level} level")
+                        
                         # Add notes and rests to the instrument part
                         for element in melody_part.flatten().notesAndRests:
                             instrument_part.append(element)
@@ -108,6 +227,32 @@ class ArrangementGenerator:
                                 # Transpose if needed
                                 part_to_add = voice_melody.transpose(interval) if interval else voice_melody
                                 
+                                # Try to use AI composer for saxophone parts
+                                if "sax" in instrument.lower():
+                                    try:
+                                        # Get instrument profile
+                                        sax_profile = get_instrument_profile(instrument)
+                                        
+                                        # Extract harmony grid from analysis
+                                        harmony_grid = analysis.get("chord_progression", ["C", "F", "G", "C"])
+                                        
+                                        # Generate saxophone line with AI composer
+                                        composed_line = generate_melodic_line(
+                                            harmony_grid=harmony_grid,
+                                            instrument_profile=sax_profile,
+                                            style="gospel",
+                                            emotion="grateful"
+                                        )
+                                        
+                                        # Use the composed line if successful
+                                        if composed_line and len(composed_line.flatten().notes) > 0:
+                                            print("🎷 Using AI-composed saxophone line")
+                                            part_to_add = composed_line
+                                        else:
+                                            print("⚠️ Composer fallback: using extracted voice part.")
+                                    except Exception as e:
+                                        print(f"⚠️ AI composer error: {e}. Using extracted voice part.")
+                                
                                 # Add notes and rests to the instrument part
                                 for element in part_to_add.flatten().notesAndRests:
                                     instrument_part.append(element)
@@ -115,31 +260,37 @@ class ArrangementGenerator:
                 except Exception as e:
                     print(f"Melody extraction failed: {e}. Falling back to chord-based generation.")
             
-            # If no melody was extracted or input is audio, generate based on chords/key
+            # If no melody was extracted or input is audio, use enhanced fallback
             if not melody_extracted:
-                # If input is audio or MIDI without clear parts, generate based on chords/key
-                # Placeholder: Generate a simple melody based on chord progression
-                # In a real implementation, this would be more sophisticated
-                current_offset = 0.0
-                for chord_name in analysis.get("chord_progression", ["C"]):
-                    try:
-                        chord_obj = music21.harmony.ChordSymbol(chord_name)
-                        root_note = chord_obj.root()
-                        # Transpose root note if needed
-                        if interval:
-                            root_note = root_note.transpose(interval)
+                print("🎵 No melody extracted, using fallback generation")
+                
+                # Get instrument profile if not already loaded
+                if 'instrument_profile' not in locals():
+                    instrument_profile = get_instrument_profile(instrument)
+                
+                # Get harmony grid
+                harmony_grid = analysis.get("chord_progression", ["C", "F", "G", "C"])
+                
+                # Generate fallback melody
+                fallback_part = self._generate_fallback_melody(harmony_grid, instrument_profile, interval)
+                
+                # Apply difficulty-based simplification to fallback
+                if difficulty_level in ["beginner", "intermediate"]:
+                    notes_list = list(fallback_part.flatten().notes)
+                    if notes_list:
+                        phrase_score = score_phrase(notes_list, instrument_profile)
+                        from backend.modules.arrangement_strategy import DIFFICULTY_THRESHOLDS
+                        min_score, max_score = DIFFICULTY_THRESHOLDS.get(difficulty_level, (0, 10))
                         
-                        # Add the root note with a default duration (e.g., whole note)
-                        note = music21.note.Note(root_note.nameWithOctave)
-                        note.duration = music21.duration.Duration("whole")
-                        instrument_part.insert(current_offset, note)
-                        current_offset += note.duration.quarterLength
-                    except Exception as e:
-                        print(f"Could not process chord {chord_name}: {e}")
-                        # Add a rest if chord processing fails
-                        rest = music21.note.Rest(type="whole")
-                        instrument_part.insert(current_offset, rest)
-                        current_offset += rest.duration.quarterLength
+                        if phrase_score > max_score:
+                            simplified_notes = simplify_phrase(notes_list, difficulty_level)
+                            fallback_part = music21.stream.Part()
+                            for n in simplified_notes:
+                                fallback_part.append(n)
+                
+                # Add fallback notes to instrument part
+                for element in fallback_part.flatten().notesAndRests:
+                    instrument_part.append(element)
             
             score.insert(0, instrument_part)
             
@@ -169,6 +320,49 @@ class ArrangementGenerator:
                 "error": str(e)
             }
 
+    def _generate_fallback_melody(self, harmony_grid: list, instrument_profile: dict, interval=None) -> music21.stream.Part:
+        """
+        Generate a simple fallback melody based on chord progression.
+        Used when all other methods fail.
+        """
+        fallback_part = music21.stream.Part()
+        current_offset = 0.0
+        
+        # Use a simple pattern: root, fifth, third, root
+        pattern = [0, 7, 4, 0]  # Intervals from root
+        
+        for chord_name in harmony_grid[:8]:  # Limit to 8 chords for safety
+            try:
+                # Extract root note
+                root_name = chord_name[0] if chord_name and chord_name[0] in 'ABCDEFG' else 'C'
+                
+                for interval_step in pattern:
+                    # Create note at appropriate pitch
+                    pitch_midi = 60 + interval_step  # Start from middle C
+                    
+                    # Ensure within instrument range
+                    if pitch_midi < instrument_profile["range"][0]:
+                        pitch_midi = instrument_profile["range"][0]
+                    elif pitch_midi > instrument_profile["range"][1]:
+                        pitch_midi = instrument_profile["range"][1]
+                    
+                    n = music21.note.Note(pitch_midi)
+                    n.duration = music21.duration.Duration(0.5)  # Eighth notes
+                    
+                    # Transpose if needed
+                    if interval:
+                        n = n.transpose(interval)
+                    
+                    fallback_part.insert(current_offset, n)
+                    current_offset += 0.5
+            except:
+                # If anything fails, add a rest
+                rest = music21.note.Rest(quarterLength=2.0)
+                fallback_part.insert(current_offset, rest)
+                current_offset += 2.0
+                
+        return fallback_part
+    
     def _get_music21_instrument(self, instrument_name: str) -> music21.instrument.Instrument:
         """Maps an instrument name string to a music21 instrument object."""
         name_lower = instrument_name.lower()

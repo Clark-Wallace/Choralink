@@ -6,9 +6,9 @@ based on the analysis of choir music (MIDI or audio).
 """
 
 import music21
-from backend.modules.music_analyzer import MusicAnalyzer
+from backend.music_analyzer import MusicAnalyzer
 from typing import Dict, Optional, Any
-
+from backend.modules.melody_extractor import extract_melody
 
 class ArrangementGenerator:
     """
@@ -38,14 +38,14 @@ class ArrangementGenerator:
         """
         try:
             # Determine file type and analyze
-            if input_file.lower().endswith(('.mid', '.midi')):
+            if input_file.lower().endswith(('.mid', '.midi', '.mxl', '.xml', '.musicxml')):
                 analysis = self.analyzer.analyze_midi(input_file)
                 is_midi = True
             elif input_file.lower().endswith(('.wav', '.mp3', '.aac', '.flac')):
                 analysis = self.analyzer.analyze_audio(input_file)
                 is_midi = False
             else:
-                raise ValueError("Unsupported input file format. Please use MIDI or common audio formats.")
+                raise ValueError("Unsupported input file format. Please use MIDI, MusicXML, or common audio formats.")
             
             # Create a new score for the instrument
             score = music21.stream.Score()
@@ -79,21 +79,44 @@ class ArrangementGenerator:
                 interval = music21.interval.Interval(source_key.tonic, target_key_obj.tonic)
             
             # Extract and process musical content
-            if is_midi and analysis.get("voice_parts"):
-                # Prioritize soprano for melody instruments
-                melody_part = analysis["voice_parts"].get("soprano")
-                if not melody_part and analysis["voice_parts"]:
-                    # Fallback to the first available part if soprano is missing
-                    melody_part = next(iter(analysis["voice_parts"].values()), None)
-                
-                if melody_part:
-                    # Transpose if needed
-                    part_to_add = melody_part.transpose(interval) if interval else melody_part
+            melody_extracted = False
+            
+            if is_midi:
+                # Use the melody extractor for all MIDI/MusicXML files
+                try:
+                    melody_part = extract_melody(input_file)
                     
-                    # Add notes and rests to the instrument part
-                    for element in part_to_add.flat.notesAndRests:
-                        instrument_part.append(element.clone())
-            else:
+                    if melody_part and len(melody_part.flatten().notes) > 0:
+                        # Transpose if needed
+                        if interval:
+                            melody_part = melody_part.transpose(interval)
+                        
+                        # Add notes and rests to the instrument part
+                        for element in melody_part.flatten().notesAndRests:
+                            instrument_part.append(element)
+                        melody_extracted = True
+                    else:
+                        # Fallback to voice parts if melody extraction fails
+                        if analysis.get("voice_parts"):
+                            # Prioritize soprano for melody instruments
+                            voice_melody = analysis["voice_parts"].get("soprano")
+                            if not voice_melody and analysis["voice_parts"]:
+                                # Fallback to the first available part if soprano is missing
+                                voice_melody = next(iter(analysis["voice_parts"].values()), None)
+                            
+                            if voice_melody:
+                                # Transpose if needed
+                                part_to_add = voice_melody.transpose(interval) if interval else voice_melody
+                                
+                                # Add notes and rests to the instrument part
+                                for element in part_to_add.flatten().notesAndRests:
+                                    instrument_part.append(element)
+                                melody_extracted = True
+                except Exception as e:
+                    print(f"Melody extraction failed: {e}. Falling back to chord-based generation.")
+            
+            # If no melody was extracted or input is audio, generate based on chords/key
+            if not melody_extracted:
                 # If input is audio or MIDI without clear parts, generate based on chords/key
                 # Placeholder: Generate a simple melody based on chord progression
                 # In a real implementation, this would be more sophisticated
@@ -122,10 +145,10 @@ class ArrangementGenerator:
             
             # Generate output files
             musicxml_output = score.write("musicxml")
-            midi_output_path = input_file.replace(".mid", f"_{instrument}_arrangement.mid") \
-                                      .replace(".midi", f"_{instrument}_arrangement.mid") \
-                                      .replace(".wav", f"_{instrument}_arrangement.mid") \
-                                      .replace(".mp3", f"_{instrument}_arrangement.mid")
+            # Get the base filename without extension
+            import os
+            base_name = os.path.splitext(input_file)[0]
+            midi_output_path = f"{base_name}_{instrument}_arrangement.mid"
             score.write("midi", fp=midi_output_path)
             
             return {

@@ -40,11 +40,11 @@ pip install -r backend/requirements.txt
 ### Basic Usage
 
 ```bash
-# Simple arrangement
-python backend/run_choralink.py --input song.mid --instrument saxophone
+# Simple arrangement with provided sample
+python backend/run_choralink.py --input examples/gospel_progression_sample.mid --instrument saxophone
 
 # With transposition and difficulty
-python backend/run_choralink.py --input gospel_choir.xml --instrument trumpet --key Bb --difficulty beginner
+python backend/run_choralink.py --input examples/ave_maria_sample.xml --instrument trumpet --key Bb --difficulty beginner
 
 # Show all options
 python backend/run_choralink.py --help
@@ -125,16 +125,16 @@ python backend/tests/test_melody_extraction.py
 
 ### Gospel Choir to Saxophone Quartet
 ```bash
-python backend/run_choralink.py --input choir_recording.mid --instrument "alto saxophone" --difficulty intermediate
-python backend/run_choralink.py --input choir_recording.mid --instrument "tenor saxophone" --difficulty intermediate
-python backend/run_choralink.py --input choir_recording.mid --instrument "baritone saxophone" --difficulty beginner
+python backend/run_choralink.py --input examples/gospel_progression_sample.mid --instrument "alto saxophone" --difficulty intermediate
+python backend/run_choralink.py --input examples/gospel_progression_sample.mid --instrument "tenor saxophone" --difficulty intermediate
+python backend/run_choralink.py --input examples/gospel_progression_sample.mid --instrument "baritone saxophone" --difficulty beginner
 ```
 
 ### Church Band Arrangement
 ```bash
-python backend/run_choralink.py --input praise_song.xml --instrument trumpet --key Bb
-python backend/run_choralink.py --input praise_song.xml --instrument piano --difficulty advanced
-python backend/run_choralink.py --input praise_song.xml --instrument bass --difficulty intermediate
+python backend/run_choralink.py --input examples/ave_maria_sample.xml --instrument trumpet --key Bb
+python backend/run_choralink.py --input examples/ave_maria_sample.xml --instrument piano --difficulty advanced
+python backend/run_choralink.py --input examples/ave_maria_sample.xml --instrument bass --difficulty intermediate
 ```
 
 ---
